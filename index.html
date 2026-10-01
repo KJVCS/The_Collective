@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Great Symphony</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+/* Layout: one pinned full-bleed scene; a long scroll track drives a single camera through Master Reference A.
+   Single committed look (the scene is the palette), so no light/dark split. */
+:root {
+  color-scheme: dark;
+  --sky-deep: #0a3a92;      /* top of the extended sky */
+  --ivory: #f4eee2;         /* stage stone, used for type */
+  --ivory-dim: rgba(244, 238, 226, 0.72);
+  --ink: #06101f;           /* night navy, for scrims */
+  --conductor: #c8261e;     /* the one accent: the conductor's jacket */
+  --hair: rgba(244, 238, 226, 0.38);
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Hanken Grotesk", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --gutter: clamp(20px, 7vw, 120px);
+}
+html { background: var(--sky-deep); }
+body { background: var(--sky-deep); color: var(--ivory); font-family: var(--sans); margin: 0; }
+
+.track { position: relative; height: 1500vh; }
+.stage {
+  position: sticky; top: 0; height: 100vh; height: 100svh; width: 100%;
+  overflow: hidden; background: var(--sky-deep);
+}
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* left-hand scrim that only exists while the camera is close */
+.scrim {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(6,16,31,.62) 0%, rgba(6,16,31,.38) 30%, rgba(6,16,31,0) 58%);
+}
+.vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, rgba(0,0,0,0) 55%, rgba(3,10,24,.38) 100%);
+}
+
+/* ---------- labels anchored to the world ---------- */
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.label {
+  position: absolute; left: 0; top: 0; opacity: 0;
+  font: 600 11px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase;
+  color: var(--ivory); white-space: nowrap; will-change: transform, opacity;
+  text-shadow: 0 1px 10px rgba(4, 12, 28, .7);
+}
+.label::after {
+  content: ""; display: block; width: 26px; height: 1px; margin-top: 9px;
+  background: var(--ivory);
+}
+
+/* ---------- copy ---------- */
+.copy { position: absolute; inset: 0; pointer-events: none; }
+.beat {
+  position: absolute; left: var(--gutter); top: 14vh; max-width: min(34rem, calc(100vw - 2 * var(--gutter)));
+  opacity: 0; will-change: transform, opacity, filter;
+  text-shadow: 0 1px 30px rgba(4, 18, 52, .35);
+}
+.beat.center { left: 50%; max-width: min(46rem, calc(100vw - 2 * var(--gutter))); width: 100%; text-align: center; transform: translateX(-50%); }
+.display {
+  font-family: var(--serif); font-weight: 300; font-optical-sizing: auto;
+  font-size: clamp(2.3rem, 4.4vw, 4.6rem); line-height: 1.02; letter-spacing: -0.018em;
+  margin: 0; text-wrap: balance;
+}
+.display em, .italic { font-style: italic; font-weight: 300; }
+.sub {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: clamp(1.45rem, 2.5vw, 2.5rem); line-height: 1.1; margin: .35em 0 0; color: var(--ivory);
+  text-wrap: balance;
+}
+.lines { list-style: none; margin: 1.6rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.lines li {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: clamp(1.25rem, 2vw, 1.95rem); line-height: 1.15; opacity: 0; will-change: opacity, transform;
+}
+.lines li.strong { font-style: normal; font-weight: 400; margin-top: .25rem; }
+.support {
+  font-family: var(--sans); font-size: clamp(.95rem, 1.1vw, 1.08rem); line-height: 1.55;
+  color: var(--ivory-dim); max-width: 26rem; margin: 1.4rem 0 0;
+}
+.rule { width: 28px; height: 1px; background: var(--hair); margin-top: 1.6rem; }
+.question .display { font-size: clamp(2.4rem, 5.2vw, 5.4rem); }
+.question .display em { display: block; }
+
+/* ---------- observers ---------- */
+#observers {
+  position: absolute; left: 0; bottom: 0; width: 100%; height: 50vh; height: 50svh;
+  pointer-events: none; opacity: 0; overflow: visible;
+}
+
+/* ---------- quiet chrome ---------- */
+.brand, .chapter, .cue, .meter { position: absolute; pointer-events: none; }
+.brand {
+  top: 28px; left: var(--gutter);
+  font: 600 11px/1 var(--sans); letter-spacing: .32em; text-transform: uppercase; color: var(--ivory);
+}
+.chapter {
+  top: 28px; right: var(--gutter);
+  font: 500 11px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--ivory-dim);
+}
+.chapter b { color: var(--ivory); font-weight: 600; }
+.meter {
+  left: var(--gutter); bottom: 30px; display: flex; align-items: center; gap: 14px;
+  font: 500 11px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--ivory-dim);
+  font-variant-numeric: tabular-nums;
+}
+.meter .bar { position: relative; width: 120px; height: 1px; background: var(--hair); }
+.meter .fill { position: absolute; left: 0; top: 0; height: 1px; width: 100%; background: var(--ivory); transform-origin: 0 0; transform: scaleX(0); }
+.meter .dot { position: absolute; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: var(--conductor); transform: translateX(-2px); }
+.meter .now { color: var(--ivory); min-width: 12ch; }
+.cue {
+  left: 50%; bottom: 34px; transform: translateX(-50%); text-align: center;
+  font: 500 10px/1 var(--sans); letter-spacing: .32em; text-transform: uppercase; color: var(--ivory);
+}
+.cue::after { content: ""; display: block; width: 1px; height: 38px; margin: 12px auto 0; background: linear-gradient(var(--ivory), rgba(244,238,226,0)); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .track { height: 1300vh; }
+  .beat { top: 11vh; }
+  .chapter { display: none; }
+  .meter .bar { width: 70px; }
+  .label { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+
+<main id="great-symphony" aria-label="Chapter 1: Great Symphony">
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <canvas id="scene" aria-hidden="true"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <div class="scrim" id="scrim" aria-hidden="true"></div>
+
+      <div class="labels" id="labels" aria-hidden="true">
+        <span class="label" data-focus="strings">Strings</span>
+        <span class="label" data-focus="brass">Brass</span>
+        <span class="label" data-focus="percussion">Percussion</span>
+        <span class="label" data-focus="conductor">Conductor</span>
+        <span class="label" data-focus="score">Score</span>
+      </div>
+
+      <svg id="observers" viewBox="0 0 1600 640" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+
+      <div class="copy" id="copy">
+        <!-- 01 — Symphony -->
+        <div class="beat" data-beat="s1">
+          <h1 class="display">When it all comes together.</h1>
+          <p class="sub" data-part="s1b">It looks effortless.</p>
+        </div>
+        <!-- 02 — Look closer -->
+        <div class="beat" data-beat="s2">
+          <h2 class="display">It isn&rsquo;t.</h2>
+          <ul class="lines">
+            <li data-line="roles">Different roles.</li>
+            <li data-line="capabilities">Different capabilities.</li>
+            <li data-line="perspectives">Different perspectives.</li>
+            <li data-line="one" class="strong">One performance.</li>
+          </ul>
+        </div>
+        <!-- 03 — The point -->
+        <div class="beat center" data-beat="s3">
+          <h2 class="display">Great parts don&rsquo;t automatically create a great&nbsp;whole.</h2>
+          <p class="sub" data-part="s3b">What makes it extraordinary<br>is how it all comes together.</p>
+        </div>
+        <!-- 04 — Bridge -->
+        <div class="beat" data-beat="s4">
+          <h2 class="display">Companies aren&rsquo;t that different.</h2>
+          <div class="rule"></div>
+          <p class="support" data-part="s4b">Different people, roles, capabilities and perspectives, working together to create something extraordinary.</p>
+        </div>
+        <div class="beat center question" data-beat="s5">
+          <h2 class="display">So, how does<em>your organisation sound?</em></h2>
+        </div>
+      </div>
+
+      <div class="brand">The Collective</div>
+      <div class="chapter">Chapter 1 <span aria-hidden="true">&mdash;</span> <b>Great Symphony</b></div>
+      <div class="meter" aria-hidden="true">
+        <span class="num" id="meterNum">01</span>
+        <span class="bar"><span class="fill" id="meterFill"></span><span class="dot" id="meterDot"></span></span>
+        <span class="now" id="meterNow">Symphony</span>
+      </div>
+      <div class="cue" id="cue" aria-hidden="true">Scroll</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ================================================================
+     CONFIG — every number that shapes the experience lives here.
+     Coordinates are in Master Reference A pixels (2095 × 751).
+     The baked world image extends A with sky above, ground below
+     and mirrored hills to the sides; WORLD.pad says by how much.
+     ================================================================ */
+  const WORLD = {
+    src: "world.jpg",
+    soft: "world-soft.jpg",
+    width: 2095, height: 751,
+    pad: { left: 420, right: 420, top: 720, bottom: 560 },
+  };
+  const IMG_BOTTOM = WORLD.height;                       // camera floor for most of the story
+  const WORLD_BOTTOM = WORLD.height + WORLD.pad.bottom;  // floor once the observers arrive
+
+  // Narrative ranges (normalised scroll progress 0..1)
+  const STATES = [
+    { id: "01", name: "Symphony",    from: 0.00, to: 0.17 },
+    { id: "02", name: "Look closer", from: 0.17, to: 0.635 },
+    { id: "03", name: "The point",   from: 0.635, to: 0.82 },
+    { id: "04", name: "Bridge",      from: 0.82, to: 1.00 },
+  ];
+
+  // Camera keyframes. cx/cy = point at screen centre; fw×fh = region that must fit on screen.
+  // Consecutive keys with near-identical framing are the "holds".
+  const CAMERA = [
+    { t: 0.000, cx: 1047, cy: 180, fw: 2095, fh: 1400, floor: IMG_BOTTOM }, // 01 open, full A
+    { t: 0.130, cx: 1050, cy: 250, fw: 1955, fh: 1300, floor: IMG_BOTTOM }, // slow drift in
+    { t: 0.215, cx: 700,  cy: 500, fw: 820,  fh: 420,  floor: IMG_BOTTOM }, // strings
+    { t: 0.275, cx: 705,  cy: 505, fw: 780,  fh: 400,  floor: IMG_BOTTOM },
+    { t: 0.310, cx: 1010, cy: 455, fw: 800,  fh: 400,  floor: IMG_BOTTOM }, // brass
+    { t: 0.355, cx: 1015, cy: 458, fw: 770,  fh: 390,  floor: IMG_BOTTOM },
+    { t: 0.395, cx: 1335, cy: 470, fw: 760,  fh: 400,  floor: IMG_BOTTOM }, // percussion
+    { t: 0.440, cx: 1338, cy: 472, fw: 730,  fh: 390,  floor: IMG_BOTTOM },
+    { t: 0.480, cx: 1005, cy: 505, fw: 700,  fh: 420,  floor: IMG_BOTTOM }, // conductor
+    { t: 0.525, cx: 1008, cy: 508, fw: 670,  fh: 400,  floor: IMG_BOTTOM },
+    { t: 0.565, cx: 950,  cy: 515, fw: 640,  fh: 380,  floor: IMG_BOTTOM }, // score
+    { t: 0.615, cx: 952,  cy: 517, fw: 615,  fh: 365,  floor: IMG_BOTTOM },
+    { t: 0.705, cx: 1047, cy: 260, fw: 2010, fh: 1330, floor: IMG_BOTTOM }, // 03 the whole again
+    { t: 0.800, cx: 1047, cy: 270, fw: 1950, fh: 1290, floor: IMG_BOTTOM },
+    { t: 0.910, cx: 1047, cy: 520, fw: 2420, fh: 1520, floor: WORLD_BOTTOM }, // 04 pull back, foreground opens
+    { t: 1.000, cx: 1047, cy: 430, fw: 2470, fh: 1560, floor: WORLD_BOTTOM }, // tilt up for the question
+  ];
+
+  // LOOK CLOSER focus sub-ranges: [fullFrom, fullTo]; fades extend FOCUS_FADE either side.
+  const FOCUS_FADE = 0.022;
+  const FOCUS = [
+    { key: "strings",    range: [0.207, 0.284], spots: [[740, 515, 270, 105]],               label: [512, 452] },
+    { key: "brass",      range: [0.302, 0.364], spots: [[1065, 438, 250, 54]],               label: [842, 392] },
+    { key: "percussion", range: [0.388, 0.449], spots: [[1402, 452, 88, 64]],                label: [1338, 398] },
+    { key: "conductor",  range: [0.472, 0.534], spots: [[1055, 522, 60, 94]],                label: [1112, 455] },
+    { key: "score",      range: [0.556, 0.622], spots: [[972, 530, 50, 42], [1123, 515, 42, 36]], label: [918, 508] },
+  ];
+  const FOCUS_ENVELOPE = [0.165, 0.212, 0.622, 0.680];   // overall depth-of-field in/out
+  const FOCUS_DIM = "rgba(6, 16, 34, 0.40)";
+
+  // Copy beats: [fadeInStart, fadeInEnd, fadeOutStart, fadeOutEnd]
+  const COPY = {
+    s1:  [0.012, 0.045, 0.100, 0.135],
+    s1b: [0.040, 0.075, 0.100, 0.135],
+    s2:  [0.178, 0.214, 0.618, 0.645],
+    roles:        [0.292, 0.316, 2, 2],
+    capabilities: [0.374, 0.398, 2, 2],
+    perspectives: [0.458, 0.482, 2, 2],
+    one:          [0.541, 0.566, 2, 2],
+    s3:  [0.668, 0.705, 0.808, 0.838],
+    s3b: [0.722, 0.756, 2, 2],
+    s4:  [0.862, 0.892, 0.936, 0.958],
+    s4b: [0.884, 0.910, 2, 2],
+    s5:  [0.952, 0.985, 2, 2],
+  };
+
+  // "The performance": faint sound rings that slow and freeze as the camera starts to move.
+  const WAVES = { origin: [1055, 455], rings: 4, minR: 140, maxR: 980, squash: 0.36, cycles: 2.4,
+                  freezeAt: 0.16, fade: [0.115, 0.175], alpha: 0.13 };
+
+  // THE POINT: anchors and connections (subtle arcs over the orchestra).
+  const ANCHORS = {
+    harp: [548, 500], vln1: [655, 505], vln2: [775, 468], horns: [880, 412], trumpets: [1005, 408],
+    tuba: [1268, 418], timpani: [1402, 444], basses: [1545, 495], cellos: [1255, 520], conductor: [1055, 462],
+  };
+  const LINKS = [
+    ["harp", "vln1"], ["vln1", "vln2"], ["vln2", "horns"], ["horns", "trumpets"], ["trumpets", "tuba"],
+    ["tuba", "timpani"], ["timpani", "basses"], ["basses", "cellos"], ["cellos", "conductor"],
+    ["conductor", "vln2"], ["conductor", "trumpets"], ["vln1", "cellos"],
+  ];
+  const CONNECT = { draw: [0.690, 0.785], pulse: [0.700, 0.860], out: [0.835, 0.880], lift: 0.34, alpha: 0.5 };
+
+  // BRIDGE observers
+  const OBSERVERS = { in: [0.835, 0.925] };
+
+  // Reduced motion: how much of the camera travel survives (0 = none, 1 = full)
+  const REDUCED_TRAVEL = 0.22;
+
+  /* ================================================================ */
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const $ = (s, r = document) => r.querySelector(s);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const smoother = t => t * t * t * (t * (t * 6 - 15) + 10);
+  const win = (p, w) => smooth(w[0], w[1], p) * (1 - smooth(w[2], w[3], p));
+
+  const track = $("#track"), stage = $("#stage"), canvas = $("#scene");
+  const ctx = canvas.getContext("2d");
+  const off = document.createElement("canvas");
+  const octx = off.getContext("2d");
+
+  const imgSharp = new Image(), imgSoft = new Image();
+  let ready = 0;
+
+  let vw = 0, vh = 0, dpr = 1;
+  let target = 0, current = 0, lastDrawn = -1;
+
+  /* ---------------- CameraState ---------------- */
+  function cameraAt(p) {
+    let i = 0;
+    while (i < CAMERA.length - 2 && p > CAMERA[i + 1].t) i++;
+    const a = CAMERA[i], b = CAMERA[i + 1];
+    const t = smoother(clamp((p - a.t) / (b.t - a.t), 0, 1));
+    let cam = {
+      cx: lerp(a.cx, b.cx, t), cy: lerp(a.cy, b.cy, t),
+      fw: Math.exp(lerp(Math.log(a.fw), Math.log(b.fw), t)),   // zoom in log space feels linear to the eye
+      fh: Math.exp(lerp(Math.log(a.fh), Math.log(b.fh), t)),
+      floor: lerp(a.floor, b.floor, t),
+    };
+    if (reduceMotion.matches) {
+      const o = CAMERA[0], k = REDUCED_TRAVEL;
+      cam.cx = lerp(o.cx, cam.cx, k); cam.cy = lerp(o.cy, cam.cy, k);
+      cam.fw = Math.exp(lerp(Math.log(o.fw), Math.log(cam.fw), k));
+      cam.fh = Math.exp(lerp(Math.log(o.fh), Math.log(cam.fh), k));
+    }
+    return resolveCamera(cam);
+  }
+
+  // Turn an abstract framing into a concrete view for this viewport, never leaving the world.
+  function resolveCamera(c) {
+    const aspect = vw / vh;
+    const narrow = clamp(aspect / 1.6, 0.52, 1);          // portrait screens frame tighter
+    const fw = c.fw * narrow, fh = c.fh;
+    const P = WORLD.pad;
+    const minX = -P.left, maxX = WORLD.width + P.right, minY = -P.top;
+    // portrait: let the ground below A show so the orchestra is not pinned to the bottom edge
+    if (aspect < 1) c.floor = lerp(c.floor, WORLD_BOTTOM, 0.6);
+    let s = Math.min(vw / fw, vh / fh);
+    s = Math.max(s, vw / (maxX - minX), vh / (c.floor - minY));
+    const w = vw / s, h = vh / s;
+    const cx = clamp(c.cx, minX + w / 2, maxX - w / 2);
+    const cy = clamp(c.cy, minY + h / 2, c.floor - h / 2);
+    return { cx, cy, s, w, h };
+  }
+  const toScreen = (cam, x, y) => [(x - cam.cx) * cam.s + vw / 2, (y - cam.cy) * cam.s + vh / 2];
+
+  /* ---------------- MasterScene ---------------- */
+  function drawWorld(g, img, cam) {
+    const sx = cam.cx - cam.w / 2 + WORLD.pad.left;
+    const sy = cam.cy - cam.h / 2 + WORLD.pad.top;
+    g.drawImage(img, sx, sy, cam.w, cam.h, 0, 0, vw, vh);
+  }
+
+  /* ---------------- FocusLayer ---------------- */
+  function focusWeights(p) {
+    return FOCUS.map(f => smooth(f.range[0] - FOCUS_FADE, f.range[0], p) * (1 - smooth(f.range[1], f.range[1] + FOCUS_FADE, p)));
+  }
+  function drawFocus(cam, p, weights) {
+    const amt = win(p, FOCUS_ENVELOPE);
+    if (amt < 0.002) return;
+    octx.globalCompositeOperation = "source-over";
+    octx.clearRect(0, 0, vw, vh);
+    drawWorld(octx, imgSoft, cam);
+    octx.fillStyle = FOCUS_DIM;
+    octx.fillRect(0, 0, vw, vh);
+    // cut feathered windows where the focus sits
+    octx.globalCompositeOperation = "destination-out";
+    FOCUS.forEach((f, i) => {
+      const w = weights[i];
+      if (w < 0.002) return;
+      f.spots.forEach(([x, y, rx, ry]) => {
+        const [X, Y] = toScreen(cam, x, y);
+        const R = rx * cam.s;
+        octx.save();
+        octx.translate(X, Y);
+        octx.scale(1, ry / rx);
+        const gr = octx.createRadialGradient(0, 0, 0, 0, 0, R * 1.35);
+        gr.addColorStop(0, `rgba(0,0,0,${w})`);
+        gr.addColorStop(0.62, `rgba(0,0,0,${w})`);
+        gr.addColorStop(1, "rgba(0,0,0,0)");
+        octx.fillStyle = gr;
+        octx.beginPath(); octx.arc(0, 0, R * 1.35, 0, Math.PI * 2); octx.fill();
+        octx.restore();
+      });
+    });
+    ctx.save();
+    ctx.globalAlpha = amt;
+    ctx.drawImage(off, 0, 0, vw, vh);
+    ctx.restore();
+  }
+
+  /* ---------------- performance rings (state 01) ---------------- */
+  function drawWaves(cam, p) {
+    const vis = 1 - smooth(WAVES.fade[0], WAVES.fade[1], p);
+    if (vis < 0.002 || reduceMotion.matches) return;
+    // phase decelerates to a stop: the performance "freezes"
+    const u = clamp(p / WAVES.freezeAt, 0, 1);
+    const phase = WAVES.cycles * (1 - (1 - u) * (1 - u));
+    const [ox, oy] = toScreen(cam, WAVES.origin[0], WAVES.origin[1]);
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (let i = 0; i < WAVES.rings; i++) {
+      const f = ((phase + i / WAVES.rings) % 1 + 1) % 1;
+      const r = lerp(WAVES.minR, WAVES.maxR, f) * cam.s;
+      const a = Math.sin(Math.PI * f) * WAVES.alpha * vis;
+      ctx.strokeStyle = `rgba(250, 240, 222, ${a})`;
+      ctx.beginPath();
+      ctx.ellipse(ox, oy, r, r * WAVES.squash, 0, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ---------------- ConnectionLayer (state 03) ---------------- */
+  function arcPoint(a, c, b, t) {
+    const m = 1 - t;
+    return [m * m * a[0] + 2 * m * t * c[0] + t * t * b[0], m * m * a[1] + 2 * m * t * c[1] + t * t * b[1]];
+  }
+  function drawConnections(cam, p) {
+    const vis = smooth(CONNECT.draw[0], CONNECT.draw[0] + 0.03, p) * (1 - smooth(CONNECT.out[0], CONNECT.out[1], p));
+    if (vis < 0.002) return;
+    const drawT = clamp((p - CONNECT.draw[0]) / (CONNECT.draw[1] - CONNECT.draw[0]), 0, 1);
+    const pulseT = clamp((p - CONNECT.pulse[0]) / (CONNECT.pulse[1] - CONNECT.pulse[0]), 0, 1);
+    const n = LINKS.length;
+    ctx.save();
+    ctx.lineCap = "round";
+    LINKS.forEach(([ka, kb], i) => {
+      const A = toScreen(cam, ...ANCHORS[ka]);
+      const B = toScreen(cam, ...ANCHORS[kb]);
+      const d = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const C = [(A[0] + B[0]) / 2, Math.min(A[1], B[1]) - d * CONNECT.lift - 10 * cam.s];
+      // staggered draw-on
+      const start = (i / n) * 0.55;
+      const local = clamp((drawT - start) / 0.45, 0, 1);
+      if (local <= 0) return;
+      const e = smoother(local);
+      ctx.strokeStyle = `rgba(255, 238, 210, ${CONNECT.alpha * vis})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const steps = 36;
+      for (let k = 0; k <= steps; k++) {
+        const pt = arcPoint(A, C, B, (k / steps) * e);
+        k ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]);
+      }
+      ctx.stroke();
+      // a single travelling pulse, scrubbed by scroll
+      if (e > 0.98 && !reduceMotion.matches) {
+        const u = ((pulseT * 1.6 + i * 0.137) % 1);
+        const q = arcPoint(A, C, B, u);
+        glow(q[0], q[1], 7, 0.55 * vis * Math.sin(Math.PI * u));
+      }
+    });
+    Object.keys(ANCHORS).forEach(k => {
+      const [x, y] = toScreen(cam, ...ANCHORS[k]);
+      glow(x, y, 6, 0.6 * vis * smooth(0, 0.25, drawT));
+    });
+    ctx.restore();
+  }
+  function glow(x, y, r, a) {
+    if (a <= 0.002) return;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(255, 244, 222, ${a})`);
+    g.addColorStop(0.35, `rgba(255, 232, 196, ${a * 0.55})`);
+    g.addColorStop(1, "rgba(255, 232, 196, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /* ---------------- labels ---------------- */
+  const labelEls = {};
+  document.querySelectorAll(".label").forEach(el => (labelEls[el.dataset.focus] = el));
+  function placeLabels(cam, weights) {
+    FOCUS.forEach((f, i) => {
+      const el = labelEls[f.key];
+      const w = weights[i];
+      const [x, y] = toScreen(cam, f.label[0], f.label[1]);
+      el.style.opacity = w.toFixed(3);
+      el.style.transform = `translate3d(${(x).toFixed(1)}px, ${(y - 34 + (1 - w) * 8).toFixed(1)}px, 0)`;
+    });
+  }
+
+  /* ---------------- CopyLayer ---------------- */
+  const beats = {};
+  document.querySelectorAll("[data-beat]").forEach(el => (beats[el.dataset.beat] = el));
+  const parts = {};
+  document.querySelectorAll("[data-part],[data-line]").forEach(el => (parts[el.dataset.part || el.dataset.line] = el));
+  function setFade(el, a, center) {
+    const rise = reduceMotion.matches ? 0 : (1 - a) * 14;
+    const blur = reduceMotion.matches ? 0 : (1 - a) * 4;
+    el.style.opacity = a.toFixed(3);
+    el.style.transform = (center ? "translateX(-50%) " : "") + `translate3d(0, ${rise.toFixed(1)}px, 0)`;
+    el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none";
+    el.style.visibility = a < 0.002 ? "hidden" : "visible";
+  }
+  function placeCopy(p) {
+    for (const k in beats) setFade(beats[k], win(p, COPY[k]), beats[k].classList.contains("center"));
+    for (const k in parts) setFade(parts[k], win(p, COPY[k]), false);
+  }
+
+  /* ---------------- ObserverLayer ---------------- */
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const obsSvg = $("#observers");
+  const FIGS = [
+    // x, scale, jacket, skin, hair style, hair colour, depth (parallax factor)
+    { x: 230,  s: 0.94, jacket: "#141a26", skin: "#6e4a37", hair: "short", hc: "#120e0c", d: 1.15 },
+    { x: 520,  s: 0.86, jacket: "#191f2b", skin: "#a87a62", hair: "bun",   hc: "#2b1a12", d: 0.95 },
+    { x: 805,  s: 1.00, jacket: "#10151f", skin: "#7f5640", hair: "short", hc: "#0d0b0a", d: 1.25 },
+    { x: 1090, s: 0.88, jacket: "#3e434c", skin: "#b8876c", hair: "long",  hc: "#4a2a18", d: 1.00 },
+    { x: 1375, s: 0.95, jacket: "#161b26", skin: "#4b2f23", hair: "curly", hc: "#0c0908", d: 1.10 },
+  ];
+  function el(tag, attrs, parent) {
+    const n = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  // back-of-head hair shapes (one closed path each, no holes)
+  const CAP = "M-51,-336 C-55,-398 -22,-412 0,-412 C24,-412 55,-398 51,-336 C48,-318 40,-306 30,-301 C10,-306 -10,-306 -30,-301 C-40,-306 -48,-318 -51,-336Z";
+  function curlyPath() {
+    const pts = [], N = 22;
+    for (let i = 0; i <= N; i++) {
+      const a = Math.PI * 0.82 + (i / N) * Math.PI * 1.36;          // around the top and sides
+      const r = (i % 2 ? 66 : 60);
+      pts.push([Math.cos(a) * r, -350 + Math.sin(a) * r * 1.02]);
+    }
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x, y] = pts[i], [px, py] = pts[i - 1];
+      const mx = (x + px) / 2 * 1.08, my = -350 + ((y + py) / 2 + 350) * 1.08;
+      d += ` Q${mx.toFixed(1)},${my.toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    return d + " C40,-296 -40,-296 " + `${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}Z`;
+  }
+  function buildObservers() {
+    const defs = el("defs", {}, obsSvg);
+    const gg = el("linearGradient", { id: "ground", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el("stop", { offset: "0", "stop-color": "#04100e", "stop-opacity": "0" }, gg);
+    el("stop", { offset: "1", "stop-color": "#030b0a", "stop-opacity": "0.8" }, gg);
+    el("rect", { x: -400, y: 240, width: 2400, height: 420, fill: "url(#ground)" }, obsSvg);
+
+    FIGS.forEach((f, i) => {
+      const id = "j" + i;
+      const lg = el("linearGradient", { id, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      el("stop", { offset: "0", "stop-color": shade(f.jacket, 1.18) }, lg);
+      el("stop", { offset: ".3", "stop-color": f.jacket }, lg);
+      el("stop", { offset: "1", "stop-color": shade(f.jacket, 0.5) }, lg);
+      const sg = el("linearGradient", { id: id + "s", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      el("stop", { offset: "0", "stop-color": shade(f.skin, 0.72) }, sg);
+      el("stop", { offset: "1", "stop-color": shade(f.skin, 0.42) }, sg);
+      const hg = el("linearGradient", { id: id + "h", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      el("stop", { offset: "0", "stop-color": shade(f.hc, 1.5) }, hg);
+      el("stop", { offset: "1", "stop-color": f.hc }, hg);
+
+      const g = el("g", { "data-fig": i }, obsSvg);
+      const inner = el("g", { transform: `translate(${f.x},640) scale(${f.s})` }, g);
+      const hair = `url(#${id}h)`;
+      if (f.hair === "long") el("path", { d: "M-53,-344 C-58,-300 -60,-262 -66,-232 C-30,-226 30,-226 66,-232 C60,-262 58,-300 53,-344Z", fill: hair }, inner);
+      el("path", { d: "M-24,-246 L-22,-306 L22,-306 L24,-246Z", fill: `url(#${id}s)` }, inner);
+      el("ellipse", { cx: -49, cy: -340, rx: 7, ry: 14, fill: shade(f.skin, 0.5) }, inner);
+      el("ellipse", { cx: 49, cy: -340, rx: 7, ry: 14, fill: shade(f.skin, 0.5) }, inner);
+      el("ellipse", { cx: 0, cy: -346, rx: 48, ry: 59, fill: `url(#${id}s)` }, inner);
+      if (f.hair === "curly") el("path", { d: curlyPath(), fill: hair }, inner);
+      else el("path", { d: CAP, fill: hair }, inner);
+      if (f.hair === "bun") el("ellipse", { cx: 0, cy: -366, rx: 24, ry: 21, fill: shade(f.hc, 1.25) }, inner);
+      el("path", { d: "M-26,-262 Q0,-271 26,-262 L25,-254 Q0,-262 -25,-254Z", fill: "#cfc8ba", opacity: ".55" }, inner);
+      el("path", { d: "M-168,40 C-170,-110 -158,-196 -106,-230 C-84,-243 -58,-252 -30,-258 Q0,-250 30,-258 C58,-252 84,-243 106,-230 C158,-196 170,-110 168,40Z", fill: `url(#${id})` }, inner);
+      el("path", { d: "M-150,-170 C-140,-205 -110,-228 -64,-246 M64,-246 C110,-228 140,-205 150,-170", stroke: "rgba(255,236,206,.12)", "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, inner);
+    });
+  }
+  function shade(hex, k) {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.round(clamp(v * k, 0, 255)));
+    return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+  }
+  const figEls = [];
+  function placeObservers(p) {
+    const a = smooth(OBSERVERS.in[0], OBSERVERS.in[1], p);
+    obsSvg.style.opacity = a.toFixed(3);
+    figEls.forEach((g, i) => {
+      const f = FIGS[i];
+      const stagger = smooth(OBSERVERS.in[0] + i * 0.008, OBSERVERS.in[1] + i * 0.004, p);
+      const y = reduceMotion.matches ? 0 : (1 - stagger) * 160 * f.d;
+      g.setAttribute("transform", `translate(0 ${y.toFixed(1)})`);
+      g.style.opacity = stagger.toFixed(3);
+    });
+  }
+
+  /* ---------------- chrome ---------------- */
+  const meterFill = $("#meterFill"), meterDot = $("#meterDot"), meterNum = $("#meterNum"), meterNow = $("#meterNow"), cue = $("#cue"), scrim = $("#scrim");
+  let lastState = "";
+  function placeChrome(p) {
+    meterFill.style.transform = `scaleX(${p.toFixed(4)})`;
+    meterDot.style.left = (p * 100).toFixed(2) + "%";
+    const s = STATES.find(s => p < s.to) || STATES[STATES.length - 1];
+    if (s.id !== lastState) { meterNum.textContent = s.id; meterNow.textContent = s.name; lastState = s.id; }
+    cue.style.opacity = (1 - smooth(0.0, 0.025, p)).toFixed(3);
+    scrim.style.opacity = (win(p, FOCUS_ENVELOPE) * 0.95).toFixed(3);
+  }
+
+  /* ---------------- GreatSymphony: one render(progress) ---------------- */
+  function render(p) {
+    if (ready < 2) return;
+    const cam = cameraAt(p);
+    const weights = focusWeights(p);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    drawWorld(ctx, imgSharp, cam);
+    drawWaves(cam, p);
+    drawFocus(cam, p, weights);
+    drawConnections(cam, p);
+    placeLabels(cam, weights);
+    placeCopy(p);
+    placeObservers(p);
+    placeChrome(p);
+    lastDrawn = p;
+  }
+
+  /* ---------------- ScrollController ---------------- */
+  function readProgress() {
+    const r = track.getBoundingClientRect();
+    const travel = track.offsetHeight - stage.offsetHeight;
+    return travel > 0 ? clamp(-r.top / travel, 0, 1) : 0;
+  }
+  let raf = 0;
+  function tick() {
+    raf = 0;
+    target = readProgress();
+    // light damping only smooths coarse wheel steps; it settles within ~200 ms and never runs on its own
+    const k = reduceMotion.matches ? 1 : 0.22;
+    current += (target - current) * k;
+    if (Math.abs(target - current) < 0.00005) current = target;
+    if (current !== lastDrawn) render(current);
+    if (current !== target) raf = requestAnimationFrame(tick);
+  }
+  const request = () => { if (!raf) raf = requestAnimationFrame(tick); };
+
+  function resize() {
+    vw = stage.clientWidth; vh = stage.clientHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (const c of [canvas, off]) { c.width = Math.round(vw * dpr); c.height = Math.round(vh * dpr); }
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = "high";
+    lastDrawn = -1; current = readProgress(); render(current);
+  }
+
+  buildObservers();
+  figEls.push(...obsSvg.querySelectorAll("[data-fig]"));
+  const onLoad = () => { ready++; if (ready === 2) resize(); };
+  imgSharp.onload = onLoad; imgSoft.onload = onLoad;
+  imgSharp.src = WORLD.src; imgSoft.src = WORLD.soft;
+
+  window.addEventListener("scroll", request, { passive: true });
+  window.addEventListener("resize", () => { resize(); });
+  reduceMotion.addEventListener?.("change", () => { lastDrawn = -1; render(current); });
+
+  // tuning hook: window.__symphony.go(0.4) jumps the scroll to a progress value
+  window.__symphony = {
+    go(p) { const travel = track.offsetHeight - stage.offsetHeight; window.scrollTo(0, track.offsetTop + travel * p); },
+    config: { CAMERA, FOCUS, COPY, CONNECT, WAVES },
+  };
+})();
+</script>
+</body>
+</html>
